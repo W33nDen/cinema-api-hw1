@@ -9,8 +9,9 @@ import {
   MaxLength,
 } from 'class-validator';
 
-export const MAX_ROWS = 100;
-export const MAX_SEATS_PER_ROW = 100;
+/** Sanity cap so that GET /halls/:id cannot produce millions of seats. */
+export const MAX_ROWS = 1000;
+export const MAX_SEATS_PER_ROW = 1000;
 
 const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
@@ -22,9 +23,9 @@ export class CreateHallDto {
     maxLength: 100,
   })
   @Transform(trim)
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(100)
+  @IsString({ message: '$property має бути рядком' })
+  @IsNotEmpty({ message: '$property не може бути порожнім' })
+  @MaxLength(100, { message: '$property має бути не довшим за 100 символів' })
   name!: string;
 
   @ApiProperty({
@@ -33,9 +34,9 @@ export class CreateHallDto {
     minimum: 1,
     maximum: MAX_ROWS,
   })
-  @IsInt()
-  @IsPositive()
-  @Max(MAX_ROWS)
+  @IsInt({ message: '$property має бути цілим числом' })
+  @IsPositive({ message: '$property має бути додатним числом' })
+  @Max(MAX_ROWS, { message: '$property має бути не більшим за $constraint1' })
   rows!: number;
 
   @ApiProperty({
@@ -44,8 +45,10 @@ export class CreateHallDto {
     minimum: 1,
     maximum: MAX_SEATS_PER_ROW,
   })
-  @IsInt()
-  @IsPositive()
-  @Max(MAX_SEATS_PER_ROW)
+  @IsInt({ message: '$property має бути цілим числом' })
+  @IsPositive({ message: '$property має бути додатним числом' })
+  @Max(MAX_SEATS_PER_ROW, {
+    message: '$property має бути не більшим за $constraint1',
+  })
   seatsPerRow!: number;
 }

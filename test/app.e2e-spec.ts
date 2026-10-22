@@ -1,9 +1,10 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
-import { setupApp } from '../src/app.setup';
+import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
+import { validationExceptionFactory } from '../src/common/validation/validation-exception.factory';
 
 type IdBody = { id: string };
 
@@ -16,7 +17,16 @@ describe('Cinema API (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    setupApp(app);
+    // Same global pipe and filter as in main.ts
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        exceptionFactory: validationExceptionFactory,
+      }),
+    );
+    app.useGlobalFilters(new HttpExceptionFilter());
     await app.init();
   });
 

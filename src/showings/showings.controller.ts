@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiCreatedResponse,
@@ -16,6 +8,7 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
+import { parseUuidPipe } from '../common/pipes/parse-uuid.pipe';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { CreateShowingDto } from './dto/create-showing.dto';
 import { FindShowingsQueryDto } from './dto/find-showings-query.dto';
@@ -66,7 +59,7 @@ export class ShowingsController {
     type: ErrorResponseDto,
     description: 'Сеанс не знайдено',
   })
-  findOne(@Param('id', ParseUUIDPipe) id: string): ShowingView {
+  findOne(@Param('id', parseUuidPipe) id: string): ShowingView {
     return this.showingsService.findOneView(id);
   }
 }

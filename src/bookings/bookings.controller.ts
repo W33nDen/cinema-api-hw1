@@ -6,7 +6,6 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseUUIDPipe,
   Post,
 } from '@nestjs/common';
 import {
@@ -20,6 +19,7 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
+import { parseUuidPipe } from '../common/pipes/parse-uuid.pipe';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -55,7 +55,7 @@ export class BookingsController {
     type: ErrorResponseDto,
     description: 'Сеанс не знайдено',
   })
-  getSeats(@Param('id', ParseUUIDPipe) id: string): SeatStatus[] {
+  getSeats(@Param('id', parseUuidPipe) id: string): SeatStatus[] {
     return this.bookingsService.getSeatMap(id);
   }
 
@@ -78,7 +78,7 @@ export class BookingsController {
       'Хоча б одне місце вже заброньоване; жодне місце з запиту не бронюється',
   })
   create(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', parseUuidPipe) id: string,
     @Body() createBookingDto: CreateBookingDto,
   ): Booking {
     return this.bookingsService.create(id, createBookingDto);
@@ -96,7 +96,7 @@ export class BookingsController {
     type: ErrorResponseDto,
     description: 'Сеанс не знайдено',
   })
-  findByShowing(@Param('id', ParseUUIDPipe) id: string): Booking[] {
+  findByShowing(@Param('id', parseUuidPipe) id: string): Booking[] {
     return this.bookingsService.findByShowing(id);
   }
 
@@ -113,7 +113,7 @@ export class BookingsController {
     type: ErrorResponseDto,
     description: 'Бронювання не знайдено',
   })
-  remove(@Param('id', ParseUUIDPipe) id: string): void {
+  remove(@Param('id', parseUuidPipe) id: string): void {
     this.bookingsService.remove(id);
   }
 }

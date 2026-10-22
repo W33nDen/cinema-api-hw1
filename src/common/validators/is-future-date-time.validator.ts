@@ -12,7 +12,7 @@ export function IsFutureDateTime(validationOptions?: ValidationOptions) {
       target: object.constructor,
       propertyName,
       options: {
-        message: `${propertyName} must be a date-time in the future`,
+        message: `${propertyName} має бути в майбутньому`,
         ...validationOptions,
       },
       validator: {

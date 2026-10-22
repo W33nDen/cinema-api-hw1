@@ -1,26 +1,21 @@
 import {
   ConflictException,
-  Inject,
   Injectable,
+  Logger,
   NotFoundException,
-  forwardRef,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { ShowingsService } from '../showings/showings.service';
+import { ShowingsStore } from '../showings/showings.store';
 import { CreateFilmDto } from './dto/create-film.dto';
 import { UpdateFilmDto } from './dto/update-film.dto';
 import { Film } from './entities/film.entity';
 
 @Injectable()
 export class FilmsService {
+  private readonly logger = new Logger(FilmsService.name);
   private films: Film[] = [];
 
-  constructor(
-    // Circular dependency: showings need films (existence, title) and
-    // deleting a film needs showings (409 if referenced). See README.
-    @Inject(forwardRef(() => ShowingsService))
-    private readonly showingsService: ShowingsService,
-  ) {}
+  constructor(private readonly showingsStore: ShowingsStore) {}
 
   create(createFilmDto: CreateFilmDto): Film {
     const film: Film = {
@@ -30,6 +25,7 @@ export class FilmsService {
       releaseYear: createFilmDto.releaseYear,
     };
     this.films.push(film);
+    this.logger.log(`Створено фільм ${film.id}`);
     return film;
   }
 
@@ -45,6 +41,7 @@ export class FilmsService {
   findOne(id: string): Film {
     const film = this.findById(id);
     if (!film) {
+      this.logger.warn(`Фільм з id ${id} не знайдено`);
       throw new NotFoundException(`Фільм з id ${id} не знайдено`);
     }
     return film;
@@ -52,21 +49,23 @@ export class FilmsService {
 
   update(id: string, updateFilmDto: UpdateFilmDto): Film {
     const film = this.findOne(id);
-    if (updateFilmDto.title !== undefined) film.title = updateFilmDto.title;
-    if (updateFilmDto.durationMinutes !== undefined)
-      film.durationMinutes = updateFilmDto.durationMinutes;
-    if (updateFilmDto.releaseYear !== undefined)
-      film.releaseYear = updateFilmDto.releaseYear;
+    // Only fields that were actually sent are changed (absent or null are ignored).
+    film.title = updateFilmDto.title ?? film.title;
+    film.durationMinutes =
+      updateFilmDto.durationMinutes ?? film.durationMinutes;
+    film.releaseYear = updateFilmDto.releaseYear ?? film.releaseYear;
     return film;
   }
 
   remove(id: string): void {
     this.findOne(id);
-    if (this.showingsService.hasShowingsForFilm(id)) {
+    if (this.showingsStore.hasShowingsForFilm(id)) {
+      this.logger.warn(`Фільм ${id} не видалено: на нього є сеанси`);
       throw new ConflictException(
         `Фільм з id ${id} не можна видалити: на нього є сеанси`,
       );
     }
     this.films = this.films.filter((film) => film.id !== id);
+    this.logger.log(`Видалено фільм ${id}`);
   }
 }

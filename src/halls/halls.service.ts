@@ -1,25 +1,21 @@
 import {
   ConflictException,
-  Inject,
   Injectable,
+  Logger,
   NotFoundException,
-  forwardRef,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { ShowingsService } from '../showings/showings.service';
+import { ShowingsStore } from '../showings/showings.store';
 import { CreateHallDto } from './dto/create-hall.dto';
 import { Hall, HallWithSeats } from './entities/hall.entity';
 import { Seat } from './entities/seat.entity';
 
 @Injectable()
 export class HallsService {
+  private readonly logger = new Logger(HallsService.name);
   private halls: Hall[] = [];
 
-  constructor(
-    // Circular dependency: showings need halls, deleting a hall needs showings.
-    @Inject(forwardRef(() => ShowingsService))
-    private readonly showingsService: ShowingsService,
-  ) {}
+  constructor(private readonly showingsStore: ShowingsStore) {}
 
   create(createHallDto: CreateHallDto): Hall {
     const name = createHallDto.name;
@@ -27,6 +23,7 @@ export class HallsService {
       (hall) => hall.name.toLowerCase() === name.toLowerCase(),
     );
     if (taken) {
+      this.logger.warn(`Зал з назвою "${name}" вже існує`);
       throw new ConflictException(`Зал з назвою "${name}" вже існує`);
     }
     const hall: Hall = {
@@ -36,6 +33,7 @@ export class HallsService {
       seatsPerRow: createHallDto.seatsPerRow,
     };
     this.halls.push(hall);
+    this.logger.log(`Створено зал ${hall.id}`);
     return hall;
   }
 
@@ -51,6 +49,7 @@ export class HallsService {
   findOne(id: string): Hall {
     const hall = this.findById(id);
     if (!hall) {
+      this.logger.warn(`Зал з id ${id} не знайдено`);
       throw new NotFoundException(`Зал з id ${id} не знайдено`);
     }
     return hall;
@@ -84,11 +83,13 @@ export class HallsService {
 
   remove(id: string): void {
     this.findOne(id);
-    if (this.showingsService.hasShowingsForHall(id)) {
+    if (this.showingsStore.hasShowingsForHall(id)) {
+      this.logger.warn(`Зал ${id} не видалено: у ньому є сеанси`);
       throw new ConflictException(
         `Зал з id ${id} не можна видалити: у ньому є сеанси`,
       );
     }
     this.halls = this.halls.filter((hall) => hall.id !== id);
+    this.logger.log(`Видалено зал ${id}`);
   }
 }

@@ -16,7 +16,7 @@ function findDuplicateSeat(value: unknown): string | null {
       continue;
     }
     const { row, seat } = item as SeatLike;
-    const key = `row ${String(row)}, seat ${String(seat)}`;
+    const key = `ряд ${String(row)}, місце ${String(seat)}`;
     if (seen.has(key)) {
       return key;
     }
@@ -34,7 +34,7 @@ export function IsUniqueSeats(validationOptions?: ValidationOptions) {
       propertyName,
       options: {
         message: (args: ValidationArguments) =>
-          `${args.property} must not contain the same seat twice (${findDuplicateSeat(args.value) ?? ''})`,
+          `${args.property} не може містити одне місце двічі (${findDuplicateSeat(args.value) ?? ''})`,
         ...validationOptions,
       },
       validator: {

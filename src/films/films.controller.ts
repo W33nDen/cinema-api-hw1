@@ -6,7 +6,6 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseUUIDPipe,
   Patch,
   Post,
 } from '@nestjs/common';
@@ -21,6 +20,7 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
+import { parseUuidPipe } from '../common/pipes/parse-uuid.pipe';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { CreateFilmDto } from './dto/create-film.dto';
 import { UpdateFilmDto } from './dto/update-film.dto';
@@ -62,7 +62,7 @@ export class FilmsController {
     type: ErrorResponseDto,
     description: 'Фільм не знайдено',
   })
-  findOne(@Param('id', ParseUUIDPipe) id: string): Film {
+  findOne(@Param('id', parseUuidPipe) id: string): Film {
     return this.filmsService.findOne(id);
   }
 
@@ -79,7 +79,7 @@ export class FilmsController {
     description: 'Фільм не знайдено',
   })
   update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', parseUuidPipe) id: string,
     @Body() updateFilmDto: UpdateFilmDto,
   ): Film {
     return this.filmsService.update(id, updateFilmDto);
@@ -102,7 +102,7 @@ export class FilmsController {
     type: ErrorResponseDto,
     description: 'На фільм посилається хоча б один сеанс',
   })
-  remove(@Param('id', ParseUUIDPipe) id: string): void {
+  remove(@Param('id', parseUuidPipe) id: string): void {
     this.filmsService.remove(id);
   }
 }

@@ -8,7 +8,7 @@ export class FindShowingsQueryDto {
     description: 'Лише сеанси цього фільму',
   })
   @IsOptional()
-  @IsUUID()
+  @IsUUID('all', { message: '$property має бути коректним UUID' })
   filmId?: string;
 
   @ApiPropertyOptional({
@@ -18,7 +18,7 @@ export class FindShowingsQueryDto {
   })
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, {
-    message: 'date must be in YYYY-MM-DD format',
+    message: '$property має бути у форматі YYYY-MM-DD',
   })
   @IsCalendarDate()
   date?: string;

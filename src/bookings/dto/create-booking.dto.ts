@@ -14,9 +14,12 @@ export class CreateBookingDto {
       { row: 1, seat: 4 },
     ],
   })
-  @IsArray()
-  @ArrayNotEmpty()
-  @ValidateNested({ each: true })
+  @IsArray({ message: '$property має бути масивом' })
+  @ArrayNotEmpty({ message: '$property має містити хоча б одне місце' })
+  @ValidateNested({
+    each: true,
+    message: 'кожен елемент $property має бути об’єктом { row, seat }',
+  })
   @Type(() => SeatDto)
   @IsUniqueSeats()
   seats!: SeatDto[];

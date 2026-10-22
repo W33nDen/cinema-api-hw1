@@ -1,10 +1,10 @@
-import { Module, forwardRef } from '@nestjs/common';
-import { ShowingsModule } from '../showings/showings.module';
+import { Module } from '@nestjs/common';
+import { ShowingsCoreModule } from '../showings/showings-core.module';
 import { FilmsController } from './films.controller';
 import { FilmsService } from './films.service';
 
 @Module({
-  imports: [forwardRef(() => ShowingsModule)],
+  imports: [ShowingsCoreModule],
   controllers: [FilmsController],
   providers: [FilmsService],
   exports: [FilmsService],

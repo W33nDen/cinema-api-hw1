@@ -1,9 +1,8 @@
 import {
   BadRequestException,
-  Inject,
   Injectable,
+  Logger,
   NotFoundException,
-  forwardRef,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { parseIsoDateTime } from '../common/utils/date.utils';
@@ -12,15 +11,15 @@ import { HallsService } from '../halls/halls.service';
 import { CreateShowingDto } from './dto/create-showing.dto';
 import { FindShowingsQueryDto } from './dto/find-showings-query.dto';
 import { Showing, ShowingView } from './entities/showing.entity';
+import { ShowingsStore } from './showings.store';
 
 @Injectable()
 export class ShowingsService {
-  private showings: Showing[] = [];
+  private readonly logger = new Logger(ShowingsService.name);
 
   constructor(
-    @Inject(forwardRef(() => FilmsService))
+    private readonly showingsStore: ShowingsStore,
     private readonly filmsService: FilmsService,
-    @Inject(forwardRef(() => HallsService))
     private readonly hallsService: HallsService,
   ) {}
 
@@ -35,25 +34,25 @@ export class ShowingsService {
       errors.push(`Зал з id ${hallId} не знайдено`);
     }
     if (errors.length > 0) {
+      this.logger.warn(`Сеанс не створено: ${errors.join('; ')}`);
       throw new BadRequestException(errors);
     }
 
-    // The DTO has already checked the format and that the moment is in the future.
+    // The DTO has already checked the format and that the moment is in the future;
+    // the check is repeated here because time passes between validation and saving.
     const startsAt = parseIsoDateTime(createShowingDto.startsAt);
     if (!startsAt || startsAt.getTime() <= Date.now()) {
-      throw new BadRequestException([
-        'startsAt must be a date-time in the future',
-      ]);
+      throw new BadRequestException(['startsAt має бути в майбутньому']);
     }
 
-    const showing: Showing = {
+    const showing = this.showingsStore.add({
       id: randomUUID(),
       filmId,
       hallId,
       startsAt: startsAt.toISOString(),
       price,
-    };
-    this.showings.push(showing);
+    });
+    this.logger.log(`Створено сеанс ${showing.id}`);
     return this.toView(showing);
   }
 
@@ -62,7 +61,8 @@ export class ShowingsService {
    * combined with AND; sorted by startsAt ascending, ties broken by id.
    */
   findAll(query: FindShowingsQueryDto): ShowingView[] {
-    return this.showings
+    return this.showingsStore
+      .findAll()
       .filter((showing) => !query.filmId || showing.filmId === query.filmId)
       .filter(
         (showing) =>
@@ -78,8 +78,9 @@ export class ShowingsService {
 
   /** The stored showing (with filmId/hallId); throws 404 when absent. */
   findOne(id: string): Showing {
-    const showing = this.showings.find((item) => item.id === id);
+    const showing = this.showingsStore.findById(id);
     if (!showing) {
+      this.logger.warn(`Сеанс з id ${id} не знайдено`);
       throw new NotFoundException(`Сеанс з id ${id} не знайдено`);
     }
     return showing;
@@ -87,14 +88,6 @@ export class ShowingsService {
 
   findOneView(id: string): ShowingView {
     return this.toView(this.findOne(id));
-  }
-
-  hasShowingsForFilm(filmId: string): boolean {
-    return this.showings.some((showing) => showing.filmId === filmId);
-  }
-
-  hasShowingsForHall(hallId: string): boolean {
-    return this.showings.some((showing) => showing.hallId === hallId);
   }
 
   private toView(showing: Showing): ShowingView {

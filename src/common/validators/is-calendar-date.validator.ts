@@ -12,7 +12,7 @@ export function IsCalendarDate(validationOptions?: ValidationOptions) {
       target: object.constructor,
       propertyName,
       options: {
-        message: `${propertyName} must be an existing calendar date`,
+        message: `${propertyName} має бути існуючою календарною датою`,
         ...validationOptions,
       },
       validator: {

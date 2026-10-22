@@ -28,18 +28,22 @@ npm install
 cp .env.example .env
 ```
 
-| Змінна | Опис | Приклад | За замовчуванням |
-| --- | --- | --- | --- |
-| `PORT` | Порт HTTP-сервера | `3000` | `3000` |
+| Змінна | Опис | Допустимі значення | Приклад | За замовчуванням |
+| --- | --- | --- | --- | --- |
+| `PORT` | Порт HTTP-сервера | ціле число 1–65535 | `3000` | `3000` |
+| `NODE_ENV` | Режим запуску | `development`, `production`, `test` | `development` | `development` |
 
-Приклад `.env`:
+Приклад `.env` (такий самий вміст має `.env.example`):
 
 ```dotenv
 PORT=3000
+NODE_ENV=development
 ```
 
-Файл `.env` завантажує `@nestjs/config` (`ConfigModule.forRoot`), значення перевіряється
-під час старту (`src/config/environment-variables.ts`). Без `.env` застосунок працює на порту 3000.
+`.env` завантажує `@nestjs/config` (`ConfigModule.forRoot({ isGlobal: true, validate })`).
+Змінні перевіряються класом `EnvironmentVariables` (`src/config/environment-variables.ts`):
+з неправильним значенням (наприклад `NODE_ENV=staging`) застосунок не стартує й пише, яка змінна
+некоректна. `main.ts` читає порт через `ConfigService`. Змінні, задані в оболонці, мають пріоритет над `.env`.
 
 ## Запуск
 
@@ -104,6 +108,9 @@ npm run test:e2e  # e2e-тест основного сценарію
   рядок, що не є UUID, → **400** (`ParseUUIDPipe`).
 - Ціни — цілі числа в копійках (125 грн = `12500`), `totalPrice = price × кількість місць`.
 - Назва залу унікальна (без урахування регістру й пробілів по краях) → інакше **409**.
+- Обмеження, яких немає в завданні, але які захищають від абсурдних даних: зал — не більше
+  1000 рядів і 1000 місць у ряду; `releaseYear` — ціле число від 1888 до поточного року + 10;
+  `title` — до 200 символів, `name` залу — до 100.
 - Фільм або зал, на який посилається хоча б один сеанс, видалити не можна → **409**.
 - `POST /showings`: неіснуючий `filmId` або `hallId` → **400** з причиною в `message`;
   `startsAt` — дата й час ISO 8601 у майбутньому, `price` — ціле додатне число.
@@ -111,6 +118,8 @@ npm run test:e2e  # e2e-тест основного сценарію
   Повтор місця в масиві → **400**, місце поза залом → **400**.
 - Поля, яких немає в DTO (зокрема зайві query-параметри), відхиляються з **400**
   (`whitelist` + `forbidNonWhitelisted`).
+- `PATCH /films/:id` приймає будь-яку підмножину полів (`UpdateFilmDto = PartialType(CreateFilmDto)`);
+  поля зі значенням `null` ігноруються.
 
 ### Час і фільтр за датою
 
@@ -124,41 +133,63 @@ npm run test:e2e  # e2e-тест основного сценарію
 
 ### Формат помилок
 
+Усі помилки мають єдиний формат (глобальний `HttpExceptionFilter`, `src/common/filters/http-exception.filter.ts`):
+
 ```json
 {
   "statusCode": 400,
-  "error": "Bad Request",
-  "message": ["price must be a positive number"],
+  "timestamp": "2026-10-22T11:46:23.776Z",
   "path": "/showings",
-  "timestamp": "2026-10-22T11:46:23.776Z"
+  "message": ["price має бути додатним числом"],
+  "error": "Bad Request"
 }
 ```
 
-`message` — рядок або масив рядків (для помилок валідації DTO) і завжди називає причину:
-яке поле не пройшло перевірку або який запис не знайдено.
+`message` — рядок або масив рядків (для помилок валідації DTO) українською мовою і завжди називає
+причину: яке поле не пройшло перевірку (для вкладених — повний шлях, як-от `seats.0.row`) або який
+запис не знайдено. Кожна помилка логується через `Logger` (рівень `warn` для 4xx, `error` для 5xx).
 
 ## Структура
 
 ```
 src/
-├── main.ts                  # bootstrap, Swagger на /docs
-├── app.module.ts            # ConfigModule + доменні модулі
-├── app.setup.ts             # глобальні ValidationPipe і HttpExceptionFilter
-├── config/                  # перевірка змінних оточення
-├── common/                  # фільтр помилок, DTO помилки, власні валідатори, утиліти дат
-├── films/                   # фільми
-├── halls/                   # зали та обчислення списку місць
-├── showings/                # сеанси та фільтрація розкладу
-└── bookings/                # бронювання та схема місць сеансу
+├── main.ts                       # ValidationPipe → HttpExceptionFilter → Swagger (/docs) → listen
+├── app.module.ts                 # ConfigModule + доменні модулі (лише збирає модулі)
+├── config/environment-variables.ts
+├── common/
+│   ├── dto/error-response.dto.ts # схема помилки для Swagger
+│   ├── filters/http-exception.filter.ts
+│   ├── pipes/parse-uuid.pipe.ts  # ParseUUIDPipe з українським повідомленням
+│   ├── utils/date.utils.ts
+│   ├── validation/validation-exception.factory.ts
+│   └── validators/               # власні валідатори: дата в майбутньому, календарна дата, унікальні місця
+├── films/                        # FilmsModule: фільми
+├── halls/                        # HallsModule: зали та обчислення списку місць
+├── showings/                     # ShowingsCoreModule (сховище) + ShowingsModule (сеанси, розклад)
+└── bookings/                     # BookingsModule: бронювання та схема місць сеансу
 ```
 
-Кожен модуль має контролер (приймає запит, викликає сервіс) і сервіс (бізнес-правила й
-приватний масив даних). Модулі взаємодіють лише через експортовані сервіси:
+Кожен доменний модуль має контролер (приймає запит, викликає сервіс, повертає результат) і сервіс
+(бізнес-правила та приватний масив даних). Модулі спілкуються лише через експортовані провайдери.
 
-- `ShowingsModule` використовує `FilmsService` і `HallsService` (перевірка існування, назви);
-- `FilmsModule` і `HallsModule` використовують `ShowingsService.hasShowingsForFilm/Hall`
-  для заборони видалення. Це взаємна залежність, тому вона оформлена через `forwardRef()`
-  в імпортах модулів і в `@Inject(forwardRef(() => …))` у конструкторах сервісів;
-- `BookingsModule` залежить від `ShowingsModule` і `HallsModule` (в один бік, без `forwardRef`).
-  Маршрути `/showings/:id/bookings` і `/showings/:id/seats` обслуговує `BookingsController`,
-  бо вони залежать від стану бронювань.
+### Залежності між модулями (без циклів і без `forwardRef`)
+
+```
+ShowingsCoreModule (ShowingsStore)      ← не залежить ні від кого
+   ↑            ↑            ↑
+FilmsModule  HallsModule     │
+   ↑            ↑            │
+   └──── ShowingsModule ─────┘          (ShowingsService)
+              ↑      HallsModule
+              └──── BookingsModule      (BookingsService)
+```
+
+- Сеансам потрібні фільми й зали (перевірка існування, назви у відповідях), а видаленню фільму
+  чи залу потрібні сеанси (заборона з 409). Щоб не було циклу `Films ↔ Showings`, спільну
+  частину винесено в окремий модуль: `ShowingsCoreModule` експортує `ShowingsStore` — сервіс,
+  що володіє приватним масивом сеансів і відповідає на `hasShowingsForFilm` / `hasShowingsForHall`.
+- `FilmsModule` і `HallsModule` імпортують лише `ShowingsCoreModule`.
+- `ShowingsModule` імпортує `ShowingsCoreModule`, `FilmsModule`, `HallsModule`; `ShowingsService`
+  перевіряє існування фільму й залу та зберігає сеанси через `ShowingsStore`.
+- `BookingsModule` імпортує `ShowingsModule` і `HallsModule`. Маршрути `/showings/:id/bookings` і
+  `/showings/:id/seats` обслуговує `BookingsController`, бо вони залежать від стану бронювань.

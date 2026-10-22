@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
@@ -16,6 +17,7 @@ const seatLabel = (seat: Seat) => `ряд ${seat.row}, місце ${seat.seat}`;
 
 @Injectable()
 export class BookingsService {
+  private readonly logger = new Logger(BookingsService.name);
   private bookings: Booking[] = [];
 
   constructor(
@@ -49,6 +51,7 @@ export class BookingsService {
       (seat) => !this.hallsService.hasSeat(hall, seat),
     );
     if (outside.length > 0) {
+      this.logger.warn(`Бронювання на сеанс ${showingId}: місць немає в залі`);
       throw new BadRequestException(
         `Місць немає в залі "${hall.name}" (${hall.rows} рядів × ${hall.seatsPerRow} місць): ${outside.map(seatLabel).join('; ')}`,
       );
@@ -57,6 +60,7 @@ export class BookingsService {
     const booked = this.getBookedSeatKeys(showingId);
     const taken = seats.filter((seat) => booked.has(seatKey(seat)));
     if (taken.length > 0) {
+      this.logger.warn(`Бронювання на сеанс ${showingId}: місця вже зайняті`);
       throw new ConflictException(
         `Місця вже заброньовані: ${taken.map(seatLabel).join('; ')}`,
       );
@@ -70,6 +74,9 @@ export class BookingsService {
       createdAt: new Date().toISOString(),
     };
     this.bookings.push(booking);
+    this.logger.log(
+      `Створено бронювання ${booking.id} (${seats.length} місць)`,
+    );
     return booking;
   }
 
@@ -88,9 +95,11 @@ export class BookingsService {
   remove(id: string): void {
     const exists = this.bookings.some((booking) => booking.id === id);
     if (!exists) {
+      this.logger.warn(`Бронювання з id ${id} не знайдено`);
       throw new NotFoundException(`Бронювання з id ${id} не знайдено`);
     }
     this.bookings = this.bookings.filter((booking) => booking.id !== id);
+    this.logger.log(`Скасовано бронювання ${id}`);
   }
 
   private getBookedSeatKeys(showingId: string): Set<string> {

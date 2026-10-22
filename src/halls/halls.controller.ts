@@ -6,7 +6,6 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseUUIDPipe,
   Post,
 } from '@nestjs/common';
 import {
@@ -20,6 +19,7 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
+import { parseUuidPipe } from '../common/pipes/parse-uuid.pipe';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { CreateHallDto } from './dto/create-hall.dto';
 import { Hall, HallWithSeats } from './entities/hall.entity';
@@ -65,7 +65,7 @@ export class HallsController {
     type: ErrorResponseDto,
     description: 'Зал не знайдено',
   })
-  findOne(@Param('id', ParseUUIDPipe) id: string): HallWithSeats {
+  findOne(@Param('id', parseUuidPipe) id: string): HallWithSeats {
     return this.hallsService.findOneWithSeats(id);
   }
 
@@ -86,7 +86,7 @@ export class HallsController {
     type: ErrorResponseDto,
     description: 'На зал посилається хоча б один сеанс',
   })
-  remove(@Param('id', ParseUUIDPipe) id: string): void {
+  remove(@Param('id', parseUuidPipe) id: string): void {
     this.hallsService.remove(id);
   }
 }

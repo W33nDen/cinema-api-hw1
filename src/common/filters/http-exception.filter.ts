@@ -3,13 +3,14 @@ import {
   Catch,
   ExceptionFilter,
   HttpException,
+  HttpStatus,
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 
 /**
- * Brings every HTTP error to one shape:
- * { statusCode, error, message, path, timestamp }.
+ * Unified error format for every HTTP error:
+ * { statusCode, timestamp, path, message, error }.
  * `message` is a string, or an array of strings for validation errors.
  */
 @Catch(HttpException)
@@ -23,27 +24,32 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const status = exception.getStatus();
     const exceptionResponse = exception.getResponse();
 
-    const body =
+    const message =
       typeof exceptionResponse === 'string'
-        ? { message: exceptionResponse, error: exception.name }
-        : (exceptionResponse as {
-            message?: string | string[];
-            error?: string;
-          });
+        ? exceptionResponse
+        : ((exceptionResponse as { message?: string | string[] }).message ??
+          exception.message);
+    const error =
+      typeof exceptionResponse === 'object' &&
+      (exceptionResponse as { error?: string }).error
+        ? (exceptionResponse as { error: string }).error
+        : exception.name;
 
-    const message = body.message ?? exception.message;
-    const error = body.error ?? exception.name;
-
-    this.logger.warn(
-      `${request.method} ${request.url} -> ${status}: ${JSON.stringify(message)}`,
-    );
+    if (status >= Number(HttpStatus.INTERNAL_SERVER_ERROR)) {
+      this.logger.error(
+        `${request.method} ${request.url} -> ${status}`,
+        exception.stack,
+      );
+    } else {
+      this.logger.warn(`${request.method} ${request.url} -> ${status}`);
+    }
 
     response.status(status).json({
       statusCode: status,
-      error,
-      message,
-      path: request.url,
       timestamp: new Date().toISOString(),
+      path: request.url,
+      message,
+      error,
     });
   }
 }

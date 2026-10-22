@@ -1,0 +1,528 @@
+# Cinema API — запити для VS Code REST Client.
+# Запускайте зверху вниз по черзі на щойно запущеному сервері (npm run start:dev).
+# Ідентифікатори беруться зі змінних (відповіді іменованих запитів), вручну нічого не вводиться.
+# Біля кожного запиту вказано очікуваний статус: "Очікується: ...".
+
+@baseUrl = http://localhost:3000
+# Коректний UUID, якого немає в сховищі (для перевірок 404)
+@unknownId = 00000000-0000-4000-8000-000000000000
+
+@filmId = {{createFilm.response.body.$.id}}
+@film2Id = {{createFilm2.response.body.$.id}}
+@filmToDeleteId = {{createFilmToDelete.response.body.$.id}}
+@hallId = {{createHall.response.body.$.id}}
+@hallName = {{createHall.response.body.$.name}}
+@hall2Id = {{createHall2.response.body.$.id}}
+@hallToDeleteId = {{createHallToDelete.response.body.$.id}}
+@showingId = {{createShowing.response.body.$.id}}
+@bookingId = {{createBooking.response.body.$.id}}
+
+### ==================== FILMS ====================
+# Створити фільм. Очікується: 201
+# @name createFilm
+POST {{baseUrl}}/films
+Content-Type: application/json
+
+{
+  "title": "Тіні забутих предків",
+  "durationMinutes": 97,
+  "releaseYear": 1965
+}
+
+### Створити другий фільм (для фільтра за filmId). Очікується: 201
+# @name createFilm2
+POST {{baseUrl}}/films
+Content-Type: application/json
+
+{
+  "title": "Земля",
+  "durationMinutes": 75,
+  "releaseYear": 1930
+}
+
+### Створити фільм без сеансів (видаляється наприкінці). Очікується: 201
+# @name createFilmToDelete
+POST {{baseUrl}}/films
+Content-Type: application/json
+
+{
+  "title": "Фільм для видалення",
+  "durationMinutes": 90,
+  "releaseYear": 2024
+}
+
+### Помилка: відсутнє обов'язкове поле title. Очікується: 400
+POST {{baseUrl}}/films
+Content-Type: application/json
+
+{
+  "durationMinutes": 97,
+  "releaseYear": 1965
+}
+
+### Помилка: неправильний тип (durationMinutes — рядок). Очікується: 400
+POST {{baseUrl}}/films
+Content-Type: application/json
+
+{
+  "title": "Тіні забутих предків",
+  "durationMinutes": "97",
+  "releaseYear": 1965
+}
+
+### Помилка: durationMinutes не ціле додатне число. Очікується: 400
+POST {{baseUrl}}/films
+Content-Type: application/json
+
+{
+  "title": "Тіні забутих предків",
+  "durationMinutes": -5,
+  "releaseYear": 1965
+}
+
+### Помилка: поле, якого немає в DTO (whitelist). Очікується: 400
+POST {{baseUrl}}/films
+Content-Type: application/json
+
+{
+  "title": "Тіні забутих предків",
+  "durationMinutes": 97,
+  "releaseYear": 1965,
+  "rating": 10
+}
+
+### Список фільмів. Очікується: 200
+GET {{baseUrl}}/films
+
+### Фільм за id. Очікується: 200
+GET {{baseUrl}}/films/{{filmId}}
+
+### Помилка: фільму з таким id немає. Очікується: 404
+GET {{baseUrl}}/films/{{unknownId}}
+
+### Помилка: id не є UUID (ParseUUIDPipe). Очікується: 400
+GET {{baseUrl}}/films/not-a-uuid
+
+### Оновити частину полів фільму. Очікується: 200
+PATCH {{baseUrl}}/films/{{filmId}}
+Content-Type: application/json
+
+{
+  "durationMinutes": 99
+}
+
+### Помилка: PATCH з неправильним типом. Очікується: 400
+PATCH {{baseUrl}}/films/{{filmId}}
+Content-Type: application/json
+
+{
+  "releaseYear": "1965"
+}
+
+### Помилка: PATCH неіснуючого фільму. Очікується: 404
+PATCH {{baseUrl}}/films/{{unknownId}}
+Content-Type: application/json
+
+{
+  "title": "Нова назва"
+}
+
+### Помилка: DELETE неіснуючого фільму. Очікується: 404
+DELETE {{baseUrl}}/films/{{unknownId}}
+
+### ==================== HALLS ====================
+# Створити зал 3 × 5 (назва з міткою часу, щоб файл можна було запускати повторно). Очікується: 201
+# @name createHall
+POST {{baseUrl}}/halls
+Content-Type: application/json
+
+{
+  "name": "Зал 1 ({{$timestamp}})",
+  "rows": 3,
+  "seatsPerRow": 5
+}
+
+### Створити другий зал 2 × 4. Очікується: 201
+# @name createHall2
+POST {{baseUrl}}/halls
+Content-Type: application/json
+
+{
+  "name": "Зал 2 ({{$timestamp}})",
+  "rows": 2,
+  "seatsPerRow": 4
+}
+
+### Створити зал без сеансів (видаляється наприкінці). Очікується: 201
+# @name createHallToDelete
+POST {{baseUrl}}/halls
+Content-Type: application/json
+
+{
+  "name": "Зал для видалення ({{$timestamp}})",
+  "rows": 1,
+  "seatsPerRow": 1
+}
+
+### Помилка: відсутнє поле name. Очікується: 400
+POST {{baseUrl}}/halls
+Content-Type: application/json
+
+{
+  "rows": 3,
+  "seatsPerRow": 5
+}
+
+### Помилка: неправильний тип (rows — рядок). Очікується: 400
+POST {{baseUrl}}/halls
+Content-Type: application/json
+
+{
+  "name": "Зал з помилкою",
+  "rows": "3",
+  "seatsPerRow": 5
+}
+
+### Помилка: rows не додатне число. Очікується: 400
+POST {{baseUrl}}/halls
+Content-Type: application/json
+
+{
+  "name": "Зал з помилкою",
+  "rows": 0,
+  "seatsPerRow": 5
+}
+
+### Помилка: seatsPerRow не ціле число. Очікується: 400
+POST {{baseUrl}}/halls
+Content-Type: application/json
+
+{
+  "name": "Зал з помилкою",
+  "rows": 3,
+  "seatsPerRow": 2.5
+}
+
+### Помилка: зал з такою назвою вже існує. Очікується: 409
+POST {{baseUrl}}/halls
+Content-Type: application/json
+
+{
+  "name": "{{hallName}}",
+  "rows": 4,
+  "seatsPerRow": 4
+}
+
+### Список залів. Очікується: 200
+GET {{baseUrl}}/halls
+
+### Зал за id із масивом seats (3 × 5 = 15 місць). Очікується: 200
+GET {{baseUrl}}/halls/{{hallId}}
+
+### Помилка: залу з таким id немає. Очікується: 404
+GET {{baseUrl}}/halls/{{unknownId}}
+
+### Помилка: DELETE неіснуючого залу. Очікується: 404
+DELETE {{baseUrl}}/halls/{{unknownId}}
+
+### ==================== SHOWINGS ====================
+# Створити сеанс: фільм 1, зал 1, 15.01.2030 18:00 UTC, 125 грн. Очікується: 201
+# @name createShowing
+POST {{baseUrl}}/showings
+Content-Type: application/json
+
+{
+  "filmId": "{{filmId}}",
+  "hallId": "{{hallId}}",
+  "startsAt": "2030-01-15T18:00:00Z",
+  "price": 12500
+}
+
+### Сеанс того ж фільму раніше того ж дня в залі 2. Очікується: 201
+# @name createShowing2
+POST {{baseUrl}}/showings
+Content-Type: application/json
+
+{
+  "filmId": "{{filmId}}",
+  "hallId": "{{hall2Id}}",
+  "startsAt": "2030-01-15T12:00:00Z",
+  "price": 10000
+}
+
+### Сеанс іншого фільму наступного дня. Очікується: 201
+# @name createShowing3
+POST {{baseUrl}}/showings
+Content-Type: application/json
+
+{
+  "filmId": "{{film2Id}}",
+  "hallId": "{{hallId}}",
+  "startsAt": "2030-01-16T18:00:00Z",
+  "price": 9000
+}
+
+### Помилка: фільму з таким filmId немає. Очікується: 400
+POST {{baseUrl}}/showings
+Content-Type: application/json
+
+{
+  "filmId": "{{unknownId}}",
+  "hallId": "{{hallId}}",
+  "startsAt": "2030-01-15T21:00:00Z",
+  "price": 12500
+}
+
+### Помилка: залу з таким hallId немає. Очікується: 400
+POST {{baseUrl}}/showings
+Content-Type: application/json
+
+{
+  "filmId": "{{filmId}}",
+  "hallId": "{{unknownId}}",
+  "startsAt": "2030-01-15T21:00:00Z",
+  "price": 12500
+}
+
+### Помилка: startsAt не є датою ISO 8601. Очікується: 400
+POST {{baseUrl}}/showings
+Content-Type: application/json
+
+{
+  "filmId": "{{filmId}}",
+  "hallId": "{{hallId}}",
+  "startsAt": "15.01.2030 18:00",
+  "price": 12500
+}
+
+### Помилка: startsAt у минулому. Очікується: 400
+POST {{baseUrl}}/showings
+Content-Type: application/json
+
+{
+  "filmId": "{{filmId}}",
+  "hallId": "{{hallId}}",
+  "startsAt": "2020-01-15T18:00:00Z",
+  "price": 12500
+}
+
+### Помилка: price не додатне число. Очікується: 400
+POST {{baseUrl}}/showings
+Content-Type: application/json
+
+{
+  "filmId": "{{filmId}}",
+  "hallId": "{{hallId}}",
+  "startsAt": "2030-01-15T21:00:00Z",
+  "price": 0
+}
+
+### Помилка: price не ціле число (гривні замість копійок). Очікується: 400
+POST {{baseUrl}}/showings
+Content-Type: application/json
+
+{
+  "filmId": "{{filmId}}",
+  "hallId": "{{hallId}}",
+  "startsAt": "2030-01-15T21:00:00Z",
+  "price": 125.5
+}
+
+### Помилка: відсутнє поле price. Очікується: 400
+POST {{baseUrl}}/showings
+Content-Type: application/json
+
+{
+  "filmId": "{{filmId}}",
+  "hallId": "{{hallId}}",
+  "startsAt": "2030-01-15T21:00:00Z"
+}
+
+### Розклад: усі сеанси, за зростанням startsAt. Очікується: 200
+GET {{baseUrl}}/showings
+
+### Розклад: лише фільм 1. Очікується: 200
+GET {{baseUrl}}/showings?filmId={{filmId}}
+
+### Розклад: лише 15.01.2030. Очікується: 200
+GET {{baseUrl}}/showings?date=2030-01-15
+
+### Розклад: фільм 2 І 15.01.2030 (AND, порожній масив). Очікується: 200
+GET {{baseUrl}}/showings?filmId={{film2Id}}&date=2030-01-15
+
+### Помилка: date не у форматі YYYY-MM-DD. Очікується: 400
+GET {{baseUrl}}/showings?date=15-01-2030
+
+### Помилка: date неіснуючий день. Очікується: 400
+GET {{baseUrl}}/showings?date=2030-02-30
+
+### Сеанс за id (з назвами фільму й залу). Очікується: 200
+GET {{baseUrl}}/showings/{{showingId}}
+
+### Помилка: сеансу з таким id немає. Очікується: 404
+GET {{baseUrl}}/showings/{{unknownId}}
+
+### Схема місць сеансу (15 елементів, усі вільні). Очікується: 200
+GET {{baseUrl}}/showings/{{showingId}}/seats
+
+### Помилка: схема місць неіснуючого сеансу. Очікується: 404
+GET {{baseUrl}}/showings/{{unknownId}}/seats
+
+### Помилка: видалити фільм, на який є сеанси. Очікується: 409
+DELETE {{baseUrl}}/films/{{filmId}}
+
+### Помилка: видалити зал, у якому є сеанси. Очікується: 409
+DELETE {{baseUrl}}/halls/{{hallId}}
+
+### ==================== BOOKINGS ====================
+# Забронювати 2 місця (totalPrice = 12500 × 2 = 25000). Очікується: 201
+# @name createBooking
+POST {{baseUrl}}/showings/{{showingId}}/bookings
+Content-Type: application/json
+
+{
+  "seats": [
+    { "row": 1, "seat": 1 },
+    { "row": 1, "seat": 2 }
+  ]
+}
+
+### Помилка: бронювання на неіснуючий сеанс. Очікується: 404
+POST {{baseUrl}}/showings/{{unknownId}}/bookings
+Content-Type: application/json
+
+{
+  "seats": [{ "row": 1, "seat": 1 }]
+}
+
+### Помилка: порожній масив seats. Очікується: 400
+POST {{baseUrl}}/showings/{{showingId}}/bookings
+Content-Type: application/json
+
+{
+  "seats": []
+}
+
+### Помилка: відсутнє поле seats. Очікується: 400
+POST {{baseUrl}}/showings/{{showingId}}/bookings
+Content-Type: application/json
+
+{}
+
+### Помилка: елемент без поля seat. Очікується: 400
+POST {{baseUrl}}/showings/{{showingId}}/bookings
+Content-Type: application/json
+
+{
+  "seats": [{ "row": 2 }]
+}
+
+### Помилка: елемент без поля row. Очікується: 400
+POST {{baseUrl}}/showings/{{showingId}}/bookings
+Content-Type: application/json
+
+{
+  "seats": [{ "seat": 2 }]
+}
+
+### Помилка: одне місце двічі в масиві. Очікується: 400
+POST {{baseUrl}}/showings/{{showingId}}/bookings
+Content-Type: application/json
+
+{
+  "seats": [
+    { "row": 2, "seat": 1 },
+    { "row": 2, "seat": 1 }
+  ]
+}
+
+### Помилка: ряд більший за кількість рядів (row 4 у залі з 3 рядами). Очікується: 400
+POST {{baseUrl}}/showings/{{showingId}}/bookings
+Content-Type: application/json
+
+{
+  "seats": [{ "row": 4, "seat": 1 }]
+}
+
+### Помилка: місце більше за seatsPerRow (seat 6 у ряду з 5 місць). Очікується: 400
+POST {{baseUrl}}/showings/{{showingId}}/bookings
+Content-Type: application/json
+
+{
+  "seats": [{ "row": 1, "seat": 6 }]
+}
+
+### Помилка: місце не ціле додатне число. Очікується: 400
+POST {{baseUrl}}/showings/{{showingId}}/bookings
+Content-Type: application/json
+
+{
+  "seats": [{ "row": 1, "seat": 0 }]
+}
+
+### Помилка: місце 1-2 вже заброньоване, 1-3 вільне — не бронюється жодне. Очікується: 409
+POST {{baseUrl}}/showings/{{showingId}}/bookings
+Content-Type: application/json
+
+{
+  "seats": [
+    { "row": 1, "seat": 3 },
+    { "row": 1, "seat": 2 }
+  ]
+}
+
+### Схема місць: 1-1 і 1-2 зайняті, 1-3 вільне (409 нічого не записав). Очікується: 200
+GET {{baseUrl}}/showings/{{showingId}}/seats
+
+### Місце 1-3 справді вільне — бронюємо його окремо. Очікується: 201
+POST {{baseUrl}}/showings/{{showingId}}/bookings
+Content-Type: application/json
+
+{
+  "seats": [{ "row": 1, "seat": 3 }]
+}
+
+### Усі бронювання. Очікується: 200
+GET {{baseUrl}}/bookings
+
+### Бронювання сеансу. Очікується: 200
+GET {{baseUrl}}/showings/{{showingId}}/bookings
+
+### Помилка: бронювання неіснуючого сеансу. Очікується: 404
+GET {{baseUrl}}/showings/{{unknownId}}/bookings
+
+### Помилка: скасувати неіснуюче бронювання. Очікується: 404
+DELETE {{baseUrl}}/bookings/{{unknownId}}
+
+### ==================== СКАСУВАННЯ ТА ВИДАЛЕННЯ (успішні сценарії наприкінці) ====================
+# Скасувати перше бронювання (місця 1-1 і 1-2 звільняються). Очікується: 204
+DELETE {{baseUrl}}/bookings/{{bookingId}}
+
+### Повторне скасування того ж бронювання. Очікується: 404
+DELETE {{baseUrl}}/bookings/{{bookingId}}
+
+### Схема місць: 1-1 і 1-2 знову вільні. Очікується: 200
+GET {{baseUrl}}/showings/{{showingId}}/seats
+
+### Звільнені місця можна забронювати знову. Очікується: 201
+POST {{baseUrl}}/showings/{{showingId}}/bookings
+Content-Type: application/json
+
+{
+  "seats": [
+    { "row": 1, "seat": 1 },
+    { "row": 1, "seat": 2 }
+  ]
+}
+
+### Видалити фільм без сеансів. Очікується: 204
+DELETE {{baseUrl}}/films/{{filmToDeleteId}}
+
+### Видалений фільм більше не знаходиться. Очікується: 404
+GET {{baseUrl}}/films/{{filmToDeleteId}}
+
+### Видалити зал без сеансів. Очікується: 204
+DELETE {{baseUrl}}/halls/{{hallToDeleteId}}
+
+### Видалений зал більше не знаходиться. Очікується: 404
+GET {{baseUrl}}/halls/{{hallToDeleteId}}
